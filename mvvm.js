@@ -22,9 +22,11 @@ function Observe(data) {
     for (let key in data) {
         let val = data[key]
         observe(data[key])
+        let dep = new Dep()
         Object.defineProperty(data, key, {
             configurable: true,
             get() {
+                Dep.target && dep.addSub(Dep.target)
                 return val
             },
             set(newValue) {
@@ -33,6 +35,7 @@ function Observe(data) {
                 }
                 val = newValue
                 observe(newValue)
+                dep.notify()
             }
         })
     }
@@ -52,18 +55,20 @@ function Compile(el, vm) {
     }
 
     function replace(frag) {
-        let arrChildNodes = Array.from(frag.childNodes)
         Array.from(frag.childNodes).forEach(node => {
             let txt = node.textContent
             let reg = /\{\{(.*?)\}\}/g
             if (node.nodeType === 3 && reg.test(txt)) {
-                console.log(RegExp.$1)
+                // console.log(RegExp.$1)
                 let arr = RegExp.$1.split('.')
                 let val = vm
                 arr.forEach(key => {
                     val = val[key]
                 })
                 node.textContent = txt.replace(reg, val).trim()
+                new Watcher(vm, RegExp.$1, newVal => {
+                    node.textContent = txt.replace(reg, newVal).trim()
+                })
             }
             if (node.childNodes && node.childNodes.length) {
                 replace(node)
@@ -75,3 +80,49 @@ function Compile(el, vm) {
 
     vm.$el.appendChild(fragment)
 }
+
+function Dep() {
+    this.subs = []
+}
+
+Dep.prototype = {
+    addSub(sub) {
+        this.subs.push(sub)
+    },
+    notify() {
+        this.subs.forEach(sub => {
+            sub.update()
+        })
+    }
+}
+
+function Watcher(vm, exp, fn) {
+    this.fn = fn
+    this.vm = vm
+    this.exp = exp
+    
+    Dep.target = this
+    let arr = exp.split('.')
+    let val = vm
+    arr.forEach(key => {
+        val = val[key]
+    })
+    Dep.target = this
+}
+Watcher.prototype = {
+    update() {
+        let arr = this.exp.split('.')
+        let val = this.vm
+        arr.forEach(key => {
+            val = val[key]
+        })
+        this.fn(val)
+    }
+}
+
+// let watcher = new Watcher(() => console.log(111))
+// let dep = new Dep()
+// dep.addSub(watcher)
+// dep.addSub(watcher)
+// dep.notify()
+
