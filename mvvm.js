@@ -70,6 +70,35 @@ function Compile(el, vm) {
                     node.textContent = txt.replace(reg, newVal).trim()
                 })
             }
+            if (node.nodeType === 1) {
+                let attributes = node.attributes
+                Array.from(attributes).forEach(attr => {
+                    let name = attr.name
+                    let exp = attr.value
+                    if (name.includes('v-')) {
+                        let val = vm
+                        let arr = exp.split('.')
+                        arr.forEach(key => {
+                            val = val[key]
+                        })
+                        node.value = val
+
+                        new Watcher(vm, exp, (newVal) => {
+                            node.value = newVal
+                        })
+                        node.addEventListener('input', e => {
+                            let newVal = e.target.value
+                            let arr = exp.split('.')
+                            let str = 'vm'
+                            arr.forEach(key => {
+                                str+=`['${key}']`
+                            })
+                            console.log(96, str)
+                            eval(str + '=' + newVal)
+                        })
+                    }
+                })
+            }
             if (node.childNodes && node.childNodes.length) {
                 replace(node)
             }

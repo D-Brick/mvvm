@@ -5,6 +5,7 @@
         <p>主打歌为{{album.theme}}</p>
         <p>作词人为{{singer}}等人。</p>
         为你弹奏肖邦的{{album.theme}}
+        <input type="text" v-model="c">
     </div>
     <script src="mvvm.js"></script>
     <script>
@@ -16,7 +17,11 @@
                     name: '十一月的肖邦',
                     theme: '夜曲'
                 },
-                singer: '周杰伦'
+                singer: '周杰伦',
+                c: 2,
+                a: {
+                    b: 1
+                }
             }
         })
     </script>
