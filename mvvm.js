@@ -133,11 +133,13 @@ function Watcher(expArr, vm, fn) {
     this.expArr = expArr
     this.vm = vm
     Dep.target = this
-    let expCatch = expArr[0].replace('{{', '').replace('}}', '').trim()
-    let arr = expCatch.split('.')
-    let val = this.vm
-    arr.forEach(key => {
-        val = val[key]
+    expArr.forEach(exp => {
+        let expCatch = exp.replace('{{', '').replace('}}', '').trim()
+        let arr = expCatch.split('.')
+        let val = this.vm
+        arr.forEach(key => {
+            val = val[key]
+        })
     })
 
     Dep.target = null
