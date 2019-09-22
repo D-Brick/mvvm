@@ -26,7 +26,7 @@ function Observe(data) {
         Object.defineProperty(data, key, {
             configurable: true,
             get() {
-                Dep.target && dep.addSub(Dep.target)
+                Dep.target && dep.addSubs(Dep.target)
                 return val
             },
             set(newValue) {
@@ -59,47 +59,65 @@ function Compile(el, vm) {
             let txt = node.textContent
             let reg = /\{\{(.*?)\}\}/g
             if (node.nodeType === 3 && reg.test(txt)) {
-                // console.log(RegExp.$1)
-                let arr = RegExp.$1.split('.')
-                let val = vm
-                arr.forEach(key => {
-                    val = val[key]
+                // let exp = RegExp.$1
+                // let expArr = txt.match(reg)
+                // let arr = exp.split('.')
+                // let val = vm
+                // arr.forEach(key => {
+                //     val = val[key]
+                // })
+                // node.textContent = node.textContent.replace(reg, val).trim()
+                // console.log(expArr)
+                let expArr = txt.match(reg)
+                let tempTxt = txt
+                expArr.forEach(exp => {
+                    // reg.test(exp)
+                    // let expCatch = RegExp.$1
+                    expCatch = exp.replace('{{', '').replace('}}', '')
+                    let arr = expCatch.split('.')
+                    let val = vm
+                    arr.forEach(key => {
+                        val = val[key]
+                    })
+                    tempTxt = tempTxt.replace(exp, val).trim()
+                    node.textContent = tempTxt
                 })
-                node.textContent = txt.replace(reg, val).trim()
-                new Watcher(vm, RegExp.$1, newVal => {
-                    node.textContent = txt.replace(reg, newVal).trim()
+                new Watcher(expArr, vm, (newTextContent) => {
+                    let tempTxt = txt
+                    newTextContent.forEach(item => {
+                        tempTxt = tempTxt.replace(item.exp, item.value)
+                    })
+                    node.textContent = tempTxt
                 })
             }
             if (node.nodeType === 1) {
                 let attributes = node.attributes
                 Array.from(attributes).forEach(attr => {
                     let name = attr.name
-                    let exp = attr.value
+                    let value = attr.value
                     if (name.includes('v-')) {
+                        let arr = value.split('.')
                         let val = vm
-                        let arr = exp.split('.')
                         arr.forEach(key => {
                             val = val[key]
                         })
                         node.value = val
-
-                        new Watcher(vm, exp, (newVal) => {
-                            node.value = newVal
+                        new Watcher([value], vm, (newTextContent) => {
+                            let tempValue = value
+                            newTextContent.forEach(item => {
+                                tempValue = tempValue.replace(item.exp, item.value)
+                            })
+                            node.value = tempValue
                         })
                         node.addEventListener('input', e => {
-                            let newVal = e.target.value
-                            let arr = exp.split('.')
-                            let str = 'vm'
-                            arr.forEach(key => {
-                                str+=`['${key}']`
-                            })
-                            console.log(96, str)
-                            eval(str + '=' + newVal)
+                            let newValue = e.target.value
+                            let execStr = 'vm.' + value + ' = ' + "'" + newValue + "'"
+                            eval(execStr)
                         })
                     }
                 })
             }
-            if (node.childNodes && node.childNodes.length) {
+            if (node.childNodes.length && node.nodeType !== 3) {
                 replace(node)
             }
         })
@@ -110,48 +128,49 @@ function Compile(el, vm) {
     vm.$el.appendChild(fragment)
 }
 
+function Watcher(expArr, vm, fn) {
+    this.fn = fn
+    this.expArr = expArr
+    this.vm = vm
+    Dep.target = this
+    let expCatch = expArr[0].replace('{{', '').replace('}}', '').trim()
+    let arr = expCatch.split('.')
+    let val = this.vm
+    arr.forEach(key => {
+        val = val[key]
+    })
+
+    Dep.target = null
+}
+
+Watcher.prototype.update = function() {
+    let replaceArr = []
+    this.expArr.forEach(exp => {
+        let expCatch = exp.replace('{{', '').replace('}}', '').trim()
+        let arr = expCatch.split('.')
+        let val = this.vm
+        arr.forEach(key => {
+            val = val[key]
+        })
+        replaceArr.push({
+            exp,
+            value: val
+        })
+    })
+    this.fn(replaceArr)
+}
+
 function Dep() {
     this.subs = []
 }
 
 Dep.prototype = {
-    addSub(sub) {
-        this.subs.push(sub)
+    addSubs(watcher) {
+        this.subs.push(watcher)
     },
     notify() {
-        this.subs.forEach(sub => {
-            sub.update()
+        this.subs.forEach(watcher => {
+            watcher.update()
         })
     }
 }
-
-function Watcher(vm, exp, fn) {
-    this.fn = fn
-    this.vm = vm
-    this.exp = exp
-    
-    Dep.target = this
-    let arr = exp.split('.')
-    let val = vm
-    arr.forEach(key => {
-        val = val[key]
-    })
-    Dep.target = this
-}
-Watcher.prototype = {
-    update() {
-        let arr = this.exp.split('.')
-        let val = this.vm
-        arr.forEach(key => {
-            val = val[key]
-        })
-        this.fn(val)
-    }
-}
-
-// let watcher = new Watcher(() => console.log(111))
-// let dep = new Dep()
-// dep.addSub(watcher)
-// dep.addSub(watcher)
-// dep.notify()
-
